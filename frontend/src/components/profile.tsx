@@ -3,8 +3,11 @@ import { FiCheck, FiArrowLeft, FiUser } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 
 export default function Profile() {
-  const [name, setName] = useState("Stranger");
-  const [email, setEmail] = useState("No email set");
+  // ===== State =====
+  const [name, setName] = useState("Stranger"); // editable
+  const [email, setEmail] = useState("No email set"); // editable
+  const [displayName, setDisplayName] = useState("Stranger"); // displayed
+  const [displayEmail, setDisplayEmail] = useState("No email set"); // displayed
   const [avatar, setAvatar] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -19,8 +22,14 @@ export default function Profile() {
         });
         if (!res.ok) return; // guest user, leave defaults
         const data = await res.json();
-        if (data.username) setName(data.username);
-        if (data.email) setEmail(data.email);
+        if (data.username) {
+          setName(data.username);
+          setDisplayName(data.username);
+        }
+        if (data.email) {
+          setEmail(data.email);
+          setDisplayEmail(data.email);
+        }
       } catch (err) {
         console.error("Failed to fetch profile:", err);
       }
@@ -40,6 +49,10 @@ export default function Profile() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to save profile");
+
+      // Update display values only after successful save
+      setDisplayName(name);
+      setDisplayEmail(email);
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (err) {
@@ -98,7 +111,7 @@ export default function Profile() {
                   className="w-full h-full object-cover"
                 />
               ) : (
-                name
+                displayName
                   .split(" ")
                   .map((n) => n[0])
                   .join("")
@@ -120,10 +133,12 @@ export default function Profile() {
             />
           </div>
 
-          {/* User Info */}
+          {/* User Info (display only updates after save) */}
           <div className="text-center sm:text-left">
-            <h2 className="text-xl font-semibold text-gray-800">{name}</h2>
-            <p className="text-gray-500">{email}</p>
+            <h2 className="text-xl font-semibold text-gray-800">
+              {displayName}
+            </h2>
+            <p className="text-gray-500">{displayEmail}</p>
           </div>
         </div>
 

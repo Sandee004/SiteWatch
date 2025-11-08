@@ -1,12 +1,12 @@
 import React, { useState, useCallback, useEffect } from "react";
-import { FiRefreshCw, FiPlus, FiSettings } from "react-icons/fi";
+import { FiRefreshCw, FiPlus, FiSettings, FiTrash2 } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 
 interface Site {
   id: string;
   url: string;
-  status: "up" | "down" | "unknown";
-  lastChecked: string | null;
+  last_status: "up" | "down" | "unknown";
+  last_checked: string | null;
 }
 
 export default function Dashboard() {
@@ -25,6 +25,7 @@ export default function Dashboard() {
         credentials: "include", // important for session-based guests
       });
       const data: Site[] = await res.json();
+      console.log(data);
       setSites(data);
     } catch (err) {
       console.error("Failed to fetch sites:", err);
@@ -69,6 +70,26 @@ export default function Dashboard() {
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") handleAddSite();
   };
+
+  // ===== Delete site =====
+  const handleDelete = useCallback(
+    async (siteId: string) => {
+      if (!window.confirm("Are you sure you want to delete this site?")) return;
+      try {
+        const res = await fetch(`http://localhost:8000/delete_site/${siteId}`, {
+          method: "DELETE",
+          credentials: "include",
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to delete site");
+        fetchSites(); // refresh list
+      } catch (err) {
+        console.error(err);
+        alert("Error deleting site. Check console for details.");
+      }
+    },
+    [fetchSites]
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
@@ -149,8 +170,17 @@ export default function Dashboard() {
               {sites.map((site) => (
                 <div
                   key={site.id}
-                  className="bg-white rounded-xl border border-gray-200 shadow-md hover:shadow-lg transition-all duration-200 p-5"
+                  className="relative bg-white rounded-xl border border-gray-200 shadow-md hover:shadow-lg transition-all duration-200 p-5"
                 >
+                  {/* Delete Icon */}
+                  <button
+                    onClick={() => handleDelete(site.id)}
+                    className="absolute top-3 right-3 p-2 text-gray-400 hover:text-red-500 transition"
+                    title="Delete site"
+                  >
+                    <FiTrash2 className="h-5 w-5" />
+                  </button>
+
                   <div className="space-y-4">
                     {/* URL */}
                     <div>
@@ -168,14 +198,14 @@ export default function Dashboard() {
                         Status
                       </p>
                       <div className="flex items-center gap-2">
-                        {site.status === "up" ? (
+                        {site.last_status === "up" ? (
                           <>
                             <span className="h-3 w-3 rounded-full bg-green-500 animate-pulse shadow-green-500/40 shadow" />
                             <span className="text-sm font-semibold text-green-600">
                               Online
                             </span>
                           </>
-                        ) : site.status === "down" ? (
+                        ) : site.last_status === "down" ? (
                           <>
                             <span className="h-3 w-3 rounded-full bg-red-500 animate-pulse shadow-red-500/40 shadow" />
                             <span className="text-sm font-semibold text-red-600">
@@ -196,8 +226,8 @@ export default function Dashboard() {
                         Last Checked
                       </p>
                       <p className="text-sm text-gray-700">
-                        {site.lastChecked
-                          ? new Date(site.lastChecked).toLocaleString()
+                        {site.last_checked
+                          ? new Date(site.last_checked).toLocaleString()
                           : "Not checked yet"}
                       </p>
                     </div>
