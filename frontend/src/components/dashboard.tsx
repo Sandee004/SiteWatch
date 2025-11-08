@@ -1,64 +1,71 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { FiRefreshCw, FiPlus, FiSettings } from "react-icons/fi";
-import { useNavigate } from "react-router-dom"; // ✅ use this if you’re using React Router
+import { useNavigate } from "react-router-dom";
 
 interface Site {
   id: string;
   url: string;
-  status: "up" | "down";
-  lastChecked: string;
+  status: "up" | "down" | "unknown";
+  lastChecked: string | null;
 }
 
 export default function Dashboard() {
-  const [sites, setSites] = useState<Site[]>([
-    { id: "1", url: "google.com", status: "up", lastChecked: "2 minutes ago" },
-    { id: "2", url: "github.com", status: "up", lastChecked: "3 minutes ago" },
-    {
-      id: "3",
-      url: "example-down.com",
-      status: "down",
-      lastChecked: "1 minute ago",
-    },
-  ]);
-
+  const [sites, setSites] = useState<Site[]>([]);
   const [urlInput, setUrlInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const navigate = useNavigate(); // 👈 enable navigation
+  const navigate = useNavigate();
 
-  const handleAddSite = useCallback(async () => {
-    if (!urlInput.trim()) return;
-    try {
-      setIsLoading(true);
-      const newSite: Site = {
-        id: Date.now().toString(),
-        url: urlInput,
-        status: "up",
-        lastChecked: "just now",
-      };
-      setSites((prev) => [...prev, newSite]);
-      setUrlInput("");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [urlInput]);
-
-  const handleRefresh = useCallback(async () => {
+  // ===== Fetch sites from backend =====
+  const fetchSites = useCallback(async () => {
     try {
       setIsRefreshing(true);
-      setSites((prevSites) =>
-        prevSites.map((site) => ({
-          ...site,
-          status: Math.random() > 0.2 ? "up" : "down",
-          lastChecked: "just now",
-        }))
-      );
+      const res = await fetch("http://localhost:8000/sites", {
+        credentials: "include", // important for session-based guests
+      });
+      const data: Site[] = await res.json();
+      setSites(data);
+    } catch (err) {
+      console.error("Failed to fetch sites:", err);
     } finally {
       setIsRefreshing(false);
     }
   }, []);
 
+  useEffect(() => {
+    fetchSites();
+  }, [fetchSites]);
+
+  // ===== Add a new site =====
+  const handleAddSite = useCallback(async () => {
+    if (!urlInput.trim()) return;
+    try {
+      setIsLoading(true);
+      const res = await fetch("http://localhost:8000/add_site", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: urlInput }),
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to add site");
+      setUrlInput("");
+      fetchSites();
+    } catch (err) {
+      console.error(err);
+      alert("Error adding site. Check console for details.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [urlInput, fetchSites]);
+
+  // ===== Refresh site statuses =====
+  const handleRefresh = useCallback(() => {
+    fetchSites();
+  }, [fetchSites]);
+
+  // ===== Enter key support =====
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") handleAddSite();
   };
@@ -69,7 +76,7 @@ export default function Dashboard() {
       <header className="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-gray-200 shadow-sm">
         <div className="max-w-6xl mx-auto flex items-center justify-between px-4 sm:px-8 py-4">
           <h1 className="text-xl sm:text-2xl font-bold text-gray-800">
-            Uptime Monitor
+            NYSC Watch
           </h1>
           <div className="flex items-center gap-4">
             <button
@@ -168,13 +175,17 @@ export default function Dashboard() {
                               Online
                             </span>
                           </>
-                        ) : (
+                        ) : site.status === "down" ? (
                           <>
                             <span className="h-3 w-3 rounded-full bg-red-500 animate-pulse shadow-red-500/40 shadow" />
                             <span className="text-sm font-semibold text-red-600">
                               Offline
                             </span>
                           </>
+                        ) : (
+                          <span className="text-sm font-semibold text-gray-500">
+                            Unknown
+                          </span>
                         )}
                       </div>
                     </div>
@@ -185,7 +196,9 @@ export default function Dashboard() {
                         Last Checked
                       </p>
                       <p className="text-sm text-gray-700">
-                        {site.lastChecked}
+                        {site.lastChecked
+                          ? new Date(site.lastChecked).toLocaleString()
+                          : "Not checked yet"}
                       </p>
                     </div>
                   </div>

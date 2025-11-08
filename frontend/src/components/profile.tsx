@@ -1,35 +1,61 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { FiCheck, FiArrowLeft, FiUser } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 
 export default function Profile() {
-  const [name, setName] = useState("John Doe");
-  const [email, setEmail] = useState("john.doe@example.com");
+  const [name, setName] = useState("Stranger");
+  const [email, setEmail] = useState("No email set");
   const [avatar, setAvatar] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const navigate = useNavigate();
 
+  // ===== Fetch user profile on mount =====
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const res = await fetch("http://localhost:8000/profile", {
+          credentials: "include",
+        });
+        if (!res.ok) return; // guest user, leave defaults
+        const data = await res.json();
+        if (data.username) setName(data.username);
+        if (data.email) setEmail(data.email);
+      } catch (err) {
+        console.error("Failed to fetch profile:", err);
+      }
+    };
+    fetchProfile();
+  }, []);
+
+  // ===== Save profile =====
   const handleSave = async () => {
     try {
       setIsSaving(true);
-      await new Promise((res) => setTimeout(res, 1000));
+      const res = await fetch("http://localhost:8000/profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ username: name, email }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to save profile");
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
-    } catch (error) {
-      console.error("Error saving profile:", error);
+    } catch (err) {
+      console.error("Error saving profile:", err);
+      alert("Failed to save profile. Check console.");
     } finally {
       setIsSaving(false);
     }
   };
 
+  // ===== Avatar handling =====
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setAvatar(reader.result as string);
-      };
+      reader.onloadend = () => setAvatar(reader.result as string);
       reader.readAsDataURL(file);
     }
   };
@@ -60,7 +86,7 @@ export default function Profile() {
 
       {/* ===== MAIN CONTENT ===== */}
       <main className="max-w-2xl mx-auto px-4 sm:px-8 py-10 space-y-10">
-        {/* --- PROFILE OVERVIEW CARD --- */}
+        {/* Profile Overview */}
         <div className="bg-white/90 backdrop-blur-md border border-gray-200 rounded-xl shadow-md hover:shadow-lg transition-all p-6 flex flex-col sm:flex-row items-center gap-6">
           {/* Avatar */}
           <div className="relative group">
@@ -96,21 +122,19 @@ export default function Profile() {
 
           {/* User Info */}
           <div className="text-center sm:text-left">
-            <h2 className="text-xl font-semibold text-gray-800">
-              {name || "Your Name"}
-            </h2>
-            <p className="text-gray-500">{email || "No email set"}</p>
+            <h2 className="text-xl font-semibold text-gray-800">{name}</h2>
+            <p className="text-gray-500">{email}</p>
           </div>
         </div>
 
-        {/* --- EDITABLE FORM --- */}
+        {/* Editable Form */}
         <div className="bg-white/90 backdrop-blur-md rounded-xl border border-gray-200 shadow-md hover:shadow-lg transition-all p-8 space-y-8">
           <p className="text-gray-500 text-sm">
             Update your personal details below. Your email is used for site
             status notifications.
           </p>
 
-          {/* Name Field */}
+          {/* Name */}
           <div className="space-y-2">
             <label
               htmlFor="name"
@@ -130,7 +154,7 @@ export default function Profile() {
             />
           </div>
 
-          {/* Email Field */}
+          {/* Email */}
           <div className="space-y-2">
             <label
               htmlFor="email"
@@ -143,7 +167,7 @@ export default function Profile() {
               id="email"
               type="email"
               placeholder="your.email@example.com"
-              value={email}
+              value={email === "No email set" ? "" : email}
               onChange={(e) => setEmail(e.target.value)}
               onKeyPress={handleKeyPress}
               disabled={isSaving}
@@ -154,7 +178,7 @@ export default function Profile() {
             </p>
           </div>
 
-          {/* Save Button + Status */}
+          {/* Save Button */}
           <div className="pt-4 flex flex-col sm:flex-row items-start sm:items-center gap-4">
             <button
               onClick={handleSave}
