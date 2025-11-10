@@ -24,7 +24,7 @@ NYSC Watch continuously monitors selected websites and notifies you immediately 
 - Monitor **multiple websites** simultaneously
 - Supports **both registered users and guests**
 - **Real-time status updates**: online, offline, or unknown
-- **Alerts** when monitored sites come online (email or browser notification)
+- **Alerts** when monitored sites come online (email notification - coming soon)
 - Responsive **frontend dashboard** to add, view, and delete monitored sites
 - **User profile management**: save your name and email for notifications
 - **Guest history** stored for 24 hours
